@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>quest2ros_msgs</name>
+  <name>quest2ros</name>
   <version>0.1.0</version>
   <description>
     Custom messages for the Quest2ROS app (OVR2ROSInputs, OVR2ROSHapticFeedback).
-    Field layout must match the quest2ros Quest app exactly so ROS-TCP-Endpoint
-    deserializes the controller-input and haptic-feedback topics correctly.
+    The package name MUST be "quest2ros": the Quest app / ROS-TCP-Endpoint registers
+    these types as quest2ros/OVR2ROSInputs, so both the field layout AND the package
+    name must match for deserialization. Matches the official Quest2ROS message pkg.
   </description>
   <maintainer email="awone.colab1@gmail.com">vaatsav</maintainer>
   <license>MIT</license>

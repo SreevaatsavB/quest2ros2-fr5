@@ -25,7 +25,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
-from quest2ros_msgs.msg import OVR2ROSInputs
+from quest2ros.msg import OVR2ROSInputs
 
 from fr5_quest_teleop import config as C
 from fr5_quest_teleop.frame_transform import DeltaCartesianMapper
@@ -71,7 +71,7 @@ class AxisCheck(Node):
         if pose is None or inputs is None:
             return
 
-        held = getattr(inputs, C.DEADMAN_FIELD) >= C.DEADMAN_THRESHOLD
+        held = float(getattr(inputs, C.CLUTCH_FIELD)) >= C.CLUTCH_THRESHOLD
         pos = np.array([pose.pose.position.x, pose.pose.position.y, pose.pose.position.z])
 
         if held and self._ref is None:

@@ -35,6 +35,10 @@ def generate_launch_description():
         DeclareLaunchArgument("control_orientation", default_value="true"),
         DeclareLaunchArgument("servo_vel", default_value="15.0"),
         DeclareLaunchArgument("gripper_enable", default_value="true"),
+        DeclareLaunchArgument("clutch_mode", default_value="hold"),
+        DeclareLaunchArgument("clutch_field", default_value="press_middle"),
+        DeclareLaunchArgument("gripper_mode", default_value="analog"),
+        DeclareLaunchArgument("gripper_field", default_value="press_index"),
         DeclareLaunchArgument("use_rviz", default_value="true"),
         DeclareLaunchArgument(
             "urdf",
@@ -75,6 +79,10 @@ def generate_launch_description():
             "control_orientation": LaunchConfiguration("control_orientation"),
             "servo_vel": LaunchConfiguration("servo_vel"),
             "gripper_enable": LaunchConfiguration("gripper_enable"),
+            "clutch_mode": LaunchConfiguration("clutch_mode"),
+            "clutch_field": LaunchConfiguration("clutch_field"),
+            "gripper_mode": LaunchConfiguration("gripper_mode"),
+            "gripper_field": LaunchConfiguration("gripper_field"),
         }],
     )
 

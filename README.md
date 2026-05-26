@@ -22,7 +22,7 @@ Meta Quest (Quest2ROS app)
    │  ROS-TCP (set PC IP + port in the app)
    ▼
 ros_tcp_endpoint  ──►  /q2r_right_hand_pose   (geometry_msgs/PoseStamped)
-                       /q2r_right_hand_inputs (quest2ros_msgs/OVR2ROSInputs)
+                       /q2r_right_hand_inputs (quest2ros/OVR2ROSInputs)
    ▼
 fr5_quest_teleop (this package)
    ├─ clutch-gated delta-Cartesian  (frame_transform.py)
@@ -34,19 +34,26 @@ fr5_quest_teleop (this package)
 Actuation goes through the **Fairino SDK** (ServoJ + IK), *not* ros2_control — the
 frcobot ros2_control stack is sim-only on this hardware.
 
-### Controller mapping (right controller)
+### Controller mapping (configurable — `CLUTCH_MODE` / `GRIPPER_MODE`)
+Default (`hold` / `analog`) — recommended on the real cobot:
 | Input (`OVR2ROSInputs`) | Physical | Role |
 |---|---|---|
-| `press_middle` | grip (middle finger) | **deadman/clutch** — hold to drive, release to hold |
-| `press_index` | trigger (index finger) | gripper open/close |
-| `button_lower` / `button_upper` | A / B | (free — Quest2ROS uses A+B to re-zero its own frame) |
+| `press_middle` | grip | **clutch** — hold to drive, release to hold (safest) |
+| `press_index` | trigger | gripper open/close (analog hysteresis) |
+
+`toggle` mode — matches the official Quest2ROS convention **and** the `SimulationInput`
+fake-Quest, so you can test with no headset:
+| Input | Physical | Role |
+|---|---|---|
+| `button_lower` | A | press to toggle tracking on/off (re-anchors on each engage) |
+| `button_upper` | B | press to toggle gripper open/closed |
 
 ---
 
 ## Packages
 | Package | Type | What |
 |---|---|---|
-| `quest2ros_msgs` | ament_cmake | `OVR2ROSInputs`, `OVR2ROSHapticFeedback` — must match the Quest app contract |
+| `quest2ros` | ament_cmake | `OVR2ROSInputs`, `OVR2ROSHapticFeedback` — package name **must** be `quest2ros` to match the app's registered type names |
 | `fr5_quest_teleop` | ament_python | teleop node, axis_check node, launch file |
 
 ---
@@ -68,8 +75,10 @@ git clone -b ROS2 https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros
 
 ### 3. This package
 ```bash
-cp -r /path/to/quest2ros2-fr5/src/quest2ros_msgs   ~/ros2_teleop_ws/src/
+cp -r /path/to/quest2ros2-fr5/src/quest2ros        ~/ros2_teleop_ws/src/
 cp -r /path/to/quest2ros2-fr5/src/fr5_quest_teleop ~/ros2_teleop_ws/src/
+# NOTE: if you also clone the official Quest2ROS2 repo, do NOT end up with two
+# "quest2ros" message packages — use only one (they are identical).
 ```
 
 ### 4. Fairino SDK + python deps
@@ -93,6 +102,32 @@ source install/setup.bash
   in the app set **IP = this PC's Wi-Fi IP** and **Port = the endpoint port** (default 10000).
 
 ---
+
+## Test without a headset (recommended first)
+
+The official Quest2ROS2 repo ships `SimulationInput` — a "fake Quest" that publishes
+the exact same topics (it holds `button_lower` and toggles `button_upper`). It lets
+you exercise the input → mapping → IK → robot path **without a headset**.
+
+```bash
+# 1) fake-Quest publishes /q2r_right_hand_{pose,inputs}  (a slow circle + button toggles)
+ros2 run q2r2_bringup SimulationInput
+
+# 2) teleop in toggle mode (matches the simulator's buttons)
+ros2 launch fr5_quest_teleop teleop.launch.py \
+    clutch_mode:=toggle clutch_field:=button_lower \
+    gripper_mode:=toggle gripper_field:=button_upper servo_vel:=8.0
+```
+Press the simulator's `button_lower` equivalent (it's held in sim) → the FR5 should
+trace the circle; `button_upper` toggles the gripper. RViz mirrors it via `/joint_states`.
+
+> **Caveat — this still needs the FR5 connected.** Unlike the reference (which uses TF
+> + a Cartesian controller), this node anchors on the robot's *actual* TCP pose and
+> drives it over the Fairino SDK, so it connects to `FR5_IP` on startup. There is no
+> robot-free dry-run yet; if you want one, that's a follow-up (mock driver + PyBullet IK).
+
+> The `clutch_*` / `gripper_*` launch args mirror the config defaults. On the real
+> headset, omit them to get the safe `hold`/`analog` defaults (grip = clutch).
 
 ## Running (separate terminals, each after `source install/setup.bash`)
 

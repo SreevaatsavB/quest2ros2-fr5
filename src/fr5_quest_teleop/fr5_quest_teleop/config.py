@@ -18,15 +18,28 @@ JOINT_NAMES = ["j1", "j2", "j3", "j4", "j5", "j6"]   # match frcobot URDF
 # ── Quest2ROS topics (published by the Quest app via ROS-TCP-Endpoint) ─────────
 ACTIVE_HAND = "right"            # "right" | "left"
 POSE_TOPIC = "/q2r_right_hand_pose"        # geometry_msgs/PoseStamped
-INPUTS_TOPIC = "/q2r_right_hand_inputs"    # quest2ros_msgs/OVR2ROSInputs
-HAPTIC_TOPIC = "/q2r_right_hand_haptic_feedback"  # quest2ros_msgs/OVR2ROSHapticFeedback
+INPUTS_TOPIC = "/q2r_right_hand_inputs"    # quest2ros/OVR2ROSInputs
+HAPTIC_TOPIC = "/q2r_right_hand_haptic_feedback"  # quest2ros/OVR2ROSHapticFeedback
 
 # ── clutch / inputs ───────────────────────────────────────────────────────────
-# The arm only tracks while the deadman is held. press_middle = grip (middle
-# finger). press_index = trigger (index finger) drives the gripper.
-DEADMAN_FIELD = "press_middle"   # OVR2ROSInputs field used as deadman
-DEADMAN_THRESHOLD = 0.6          # held when value >= this
-GRIPPER_TRIGGER_FIELD = "press_index"
+# The arm only tracks while the clutch is engaged; otherwise it holds. Two modes:
+#   "hold"   — engaged WHILE CLUTCH_FIELD (analog) >= CLUTCH_THRESHOLD. Safest for
+#              a real cobot; default uses the grip (press_middle). Release = hold.
+#   "toggle" — CLUTCH_FIELD is a bool button; each press flips engaged on/off.
+#              This is the official Quest2ROS convention (button_lower) AND what the
+#              SimulationInput "fake Quest" drives — set this to test WITHOUT a headset.
+#
+# OVR2ROSInputs fields: button_upper(B,bool) button_lower(A,bool)
+#                       thumb_stick_horizontal/vertical press_index(trigger) press_middle(grip)
+CLUTCH_MODE = "hold"             # "hold" | "toggle"
+CLUTCH_FIELD = "press_middle"    # hold: press_middle/press_index ; toggle: button_lower/button_upper
+CLUTCH_THRESHOLD = 0.6           # engaged when analog value >= this (hold mode)
+
+# Gripper input:
+#   "analog" — GRIPPER_FIELD (press_index trigger) hysteresis open/close
+#   "toggle" — GRIPPER_FIELD is a bool button (button_upper); each press flips state
+GRIPPER_MODE = "analog"          # "analog" | "toggle"
+GRIPPER_FIELD = "press_index"
 
 # ── delta-Cartesian mapping ───────────────────────────────────────────────────
 # AXIS_MAP: Quest controller frame → FR5 base frame. MUST be a proper rotation

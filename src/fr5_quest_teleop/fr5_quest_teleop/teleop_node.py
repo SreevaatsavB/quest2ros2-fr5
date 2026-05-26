@@ -26,7 +26,7 @@ from rclpy.executors import MultiThreadedExecutor
 
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import JointState
-from quest2ros_msgs.msg import OVR2ROSInputs
+from quest2ros.msg import OVR2ROSInputs
 
 from fr5_quest_teleop import config as C
 from fr5_quest_teleop.fr5_driver import FR5Driver
@@ -51,6 +51,11 @@ class FR5QuestTeleop(Node):
         self.rotation_scale = float(p("rotation_scale", C.ROTATION_SCALE).value)
         self.control_orientation = bool(p("control_orientation", C.CONTROL_ORIENTATION).value)
         self.gripper_enable = bool(p("gripper_enable", C.GRIPPER_ENABLE).value)
+        self.clutch_mode = p("clutch_mode", C.CLUTCH_MODE).value
+        self.clutch_field = p("clutch_field", C.CLUTCH_FIELD).value
+        self.clutch_threshold = float(p("clutch_threshold", C.CLUTCH_THRESHOLD).value)
+        self.gripper_mode = p("gripper_mode", C.GRIPPER_MODE).value
+        self.gripper_field = p("gripper_field", C.GRIPPER_FIELD).value
 
         hand = "right" if self.active_hand == "right" else "left"
         pose_topic = f"/q2r_{hand}_hand_pose"
@@ -84,6 +89,12 @@ class FR5QuestTeleop(Node):
         self._cycle = 0
         self._stop = threading.Event()
 
+        # input edge/toggle state
+        self._clutch_toggle = False
+        self._clutch_btn_prev = False
+        self._grip_closed = False
+        self._grip_btn_prev = False
+
         self.get_logger().info(
             f"Subscribing: {pose_topic}, {inputs_topic}  | hand={hand}  "
             f"orientation={'on' if self.control_orientation else 'off'}"
@@ -102,6 +113,34 @@ class FR5QuestTeleop(Node):
     def _latest(self):
         with self._lock:
             return self._pose, self._inputs
+
+    # ── input interpretation (hold vs toggle) ─────────────────────────────────
+
+    def _clutch_engaged(self, inputs) -> bool:
+        """True while the operator wants the arm to track the controller."""
+        if inputs is None:
+            return self._clutch_toggle if self.clutch_mode == "toggle" else False
+        val = getattr(inputs, self.clutch_field)
+        if self.clutch_mode == "toggle":
+            pressed = bool(val)
+            if pressed and not self._clutch_btn_prev:
+                self._clutch_toggle = not self._clutch_toggle
+            self._clutch_btn_prev = pressed
+            return self._clutch_toggle
+        return float(val) >= self.clutch_threshold
+
+    def _feed_gripper(self, inputs):
+        """Translate the gripper input into a normalised value for GripperController."""
+        if self.gripper is None or inputs is None:
+            return
+        if self.gripper_mode == "toggle":
+            pressed = bool(getattr(inputs, self.gripper_field))
+            if pressed and not self._grip_btn_prev:
+                self._grip_closed = not self._grip_closed
+            self._grip_btn_prev = pressed
+            self.gripper.update_trigger(1.0 if self._grip_closed else 0.0)
+        else:
+            self.gripper.update_trigger(float(getattr(inputs, self.gripper_field)))
 
     # ── hardware bring-up ─────────────────────────────────────────────────────
 
@@ -130,8 +169,6 @@ class FR5QuestTeleop(Node):
 
     def control_loop(self):
         period = 1.0 / self.loop_hz
-        deadman_field = C.DEADMAN_FIELD
-        trigger_field = C.GRIPPER_TRIGGER_FIELD
 
         while not self._stop.is_set() and rclpy.ok():
             t0 = time.monotonic()
@@ -140,18 +177,14 @@ class FR5QuestTeleop(Node):
 
                 # Gripper handshake (pauses servo if a state change is pending)
                 if self.gripper is not None:
-                    if inputs is not None:
-                        self.gripper.update_trigger(getattr(inputs, trigger_field))
+                    self._feed_gripper(inputs)
                     if self.gripper.wants_pause():
                         self.gripper.pause_and_send()
                         self._prev_joints = self.driver.get_joint_positions()
 
-                deadman = (
-                    inputs is not None
-                    and getattr(inputs, deadman_field) >= C.DEADMAN_THRESHOLD
-                )
+                engaged = self._clutch_engaged(inputs)
 
-                if deadman and pose is not None:
+                if engaged and pose is not None:
                     ctrl_pos = (pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
                     q = pose.pose.orientation
                     ctrl_quat = (q.x, q.y, q.z, q.w)
