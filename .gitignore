@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# ROS2 / colcon build artifacts
+build/
+install/
+log/
+
+# OS
+.DS_Store

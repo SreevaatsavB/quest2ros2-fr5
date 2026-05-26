@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>quest2ros_msgs</name>
+  <version>0.1.0</version>
+  <description>
+    Custom messages for the Quest2ROS app (OVR2ROSInputs, OVR2ROSHapticFeedback).
+    Field layout must match the quest2ros Quest app exactly so ROS-TCP-Endpoint
+    deserializes the controller-input and haptic-feedback topics correctly.
+  </description>
+  <maintainer email="awone.colab1@gmail.com">vaatsav</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
